@@ -3,13 +3,12 @@ pragma solidity ^0.8.7;
 
 /// ============ Imports ============
 
-import './Exchange.sol';
-import './InitializedProxy.sol';
+import "./Exchange.sol";
+import "./InitializedProxy.sol";
 
 contract Factory {
     /// ============ Storage ============
 
-    address public constant ZERO_ADDRESS = 0x0000000000000000000000000000000000000000;
     address public exchangeTemplate;
     uint256 public tokenCount;
 
@@ -44,11 +43,11 @@ contract Factory {
     /// ============ Factory Methods ============
 
     function createExchange(address _token) external returns (address) {
-        require(_token != ZERO_ADDRESS);
-        require(tokenToExchange[_token] == ZERO_ADDRESS);
+        require(_token != address(0));
+        require(tokenToExchange[_token] == address(0));
 
         bytes memory _initializationCalldata = abi.encodeWithSignature(
-            'setup(address)',
+            "setup(address)",
             _token
         );
         address exchange = address(

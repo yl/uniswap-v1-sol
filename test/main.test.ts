@@ -8,6 +8,7 @@ chai.use(asPromised)
 
 const FIVE_ETH = ethers.utils.parseEther('5')
 const FIVE_TOKENS = ethers.utils.parseUnits('5')
+const DEADLINE = (new Date().getTime() / 1000).toFixed() + 10
 
 describe('Uniswap v1', () => {
     let deployer: Signer
@@ -76,7 +77,7 @@ describe('Uniswap v1', () => {
         it('should add liquidity of 5 $ROHAN', async () => {
             await exchange
                 .connect(seller)
-                .addLiquidity(0, FIVE_TOKENS, 1632752757, { value: FIVE_ETH })
+                .addLiquidity(0, FIVE_TOKENS, DEADLINE, { value: FIVE_ETH })
 
             const supply = await exchange.totalSupply()
             expect(supply.toBigInt()).to.eq(FIVE_TOKENS.toBigInt())
@@ -88,13 +89,13 @@ describe('Uniswap v1', () => {
         it('should remove liquidity of 5 $ROHAN', async () => {
             await exchange
                 .connect(seller)
-                .addLiquidity(0, FIVE_TOKENS, 1632752757, { value: FIVE_ETH })
+                .addLiquidity(0, FIVE_TOKENS, DEADLINE, { value: FIVE_ETH })
             const balanceAfterAdd = await token.balanceOf(exchange.address)
             expect(balanceAfterAdd.toBigInt()).to.eq(FIVE_TOKENS.toBigInt())
 
             await exchange
                 .connect(seller)
-                .removeLiquidity(FIVE_TOKENS, FIVE_TOKENS, FIVE_TOKENS, 1632752757)
+                .removeLiquidity(FIVE_TOKENS, FIVE_TOKENS, FIVE_TOKENS, DEADLINE)
 
             const balanceAfterRemove = await token.balanceOf(exchange.address)
             expect(balanceAfterRemove.toBigInt()).to.eq(BigInt(0))

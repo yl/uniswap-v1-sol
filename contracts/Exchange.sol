@@ -3,14 +3,10 @@ pragma solidity ^0.8.7;
 
 /// ============ Imports ============
 
-import './interfaces/IExchange.sol';
-import './interfaces/IFactory.sol';
-import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import "./interfaces/IExchange.sol";
+import "./interfaces/IFactory.sol";
 
 contract Exchange {
-    using SafeMath for uint256;
-    address public constant ZERO_ADDRESS = 0x0000000000000000000000000000000000000000;
-
     /// ============ Exchange Info ============
 
     string public name;
@@ -51,19 +47,23 @@ contract Exchange {
 
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
 
-    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+    event Approval(
+        address indexed _owner,
+        address indexed _spender,
+        uint256 _value
+    );
 
     /// ============ Initializer ============
 
     function setup(address _token) external {
-        require(factory == ZERO_ADDRESS);
-        require(token == ZERO_ADDRESS);
-        require(_token != ZERO_ADDRESS);
+        require(factory == address(0));
+        require(token == address(0));
+        require(_token != address(0));
 
         factory = msg.sender;
         token = _token;
-        name = 'Uniswap V1';
-        symbol = 'UNI-V1';
+        name = "Uniswap V1";
+        symbol = "UNI-V1";
         decimals = 18;
     }
 
@@ -77,7 +77,11 @@ contract Exchange {
         return factory;
     }
 
-    function getEthToTokenInputPrice(uint256 _ethSold) external view returns (uint256) {
+    function getEthToTokenInputPrice(uint256 _ethSold)
+        external
+        view
+        returns (uint256)
+    {
         require(_ethSold > 0);
         uint256 tokenReserve = IExchange(token).balanceOf(address(this));
         return getInputPrice(_ethSold, address(this).balance, tokenReserve);
@@ -147,8 +151,8 @@ contract Exchange {
 
             uint256 ethReserve = address(this).balance - msg.value;
             uint256 tokenReserve = IExchange(token).balanceOf(address(this));
-            uint256 tokenAmount = (msg.value.mul(tokenReserve)).div((ethReserve.add(1)));
-            uint256 liquidityMinted = (msg.value.mul(totalLiquidity)).div(ethReserve);
+            uint256 tokenAmount = (msg.value * tokenReserve) / (ethReserve + 1);
+            uint256 liquidityMinted = (msg.value * totalLiquidity) / ethReserve;
 
             require(_maxTokens > tokenAmount);
             require(liquidityMinted >= _minLiquidity);
@@ -157,17 +161,21 @@ contract Exchange {
             totalSupply = totalLiquidity + liquidityMinted;
 
             require(
-                IExchange(token).transferFrom(msg.sender, address(this), tokenAmount),
-                'ERROR: FAILED TOKEN TRANSFER'
+                IExchange(token).transferFrom(
+                    msg.sender,
+                    address(this),
+                    tokenAmount
+                ),
+                "ERROR: FAILED TOKEN TRANSFER"
             );
 
             emit AddLiquidity(msg.sender, msg.value, tokenAmount);
-            emit Transfer(ZERO_ADDRESS, msg.sender, liquidityMinted);
+            emit Transfer(address(0), msg.sender, liquidityMinted);
 
             return liquidityMinted;
         } else {
-            require(factory != ZERO_ADDRESS);
-            require(token != ZERO_ADDRESS);
+            require(factory != address(0));
+            require(token != address(0));
             require(msg.value >= 1000000000);
             require(IFactory(factory).getExchange(token) == address(this));
 
@@ -178,11 +186,15 @@ contract Exchange {
             balances[msg.sender] = initialLiquidity;
 
             require(
-                IExchange(token).transferFrom(msg.sender, address(this), tokenAmount)
+                IExchange(token).transferFrom(
+                    msg.sender,
+                    address(this),
+                    tokenAmount
+                )
             );
 
             emit AddLiquidity(msg.sender, msg.value, tokenAmount);
-            emit Transfer(ZERO_ADDRESS, msg.sender, initialLiquidity);
+            emit Transfer(address(0), msg.sender, initialLiquidity);
 
             return initialLiquidity;
         }
@@ -209,8 +221,8 @@ contract Exchange {
         require(totalLiquidity > 0);
 
         uint256 tokenReserve = IExchange(token).balanceOf(address(this));
-        uint256 ethAmount = (_amount.mul(address(this).balance)).div(totalLiquidity);
-        uint256 tokenAmount = (_amount.mul(tokenReserve)).div(totalLiquidity);
+        uint256 ethAmount = (_amount * address(this).balance) / totalLiquidity;
+        uint256 tokenAmount = (_amount * tokenReserve) / totalLiquidity;
 
         require(ethAmount >= _minEth);
         require(tokenAmount >= _minTokens);
@@ -218,12 +230,12 @@ contract Exchange {
         balances[msg.sender] -= _amount;
         totalSupply = totalLiquidity - _amount;
 
-        (bool success, ) = payable(msg.sender).call{ value: ethAmount }('');
-        require(success, 'ERROR: FAILED SENDING ETHER');
+        (bool success, ) = payable(msg.sender).call{value: ethAmount}("");
+        require(success, "ERROR: FAILED SENDING ETHER");
         require(IExchange(token).transfer(msg.sender, tokenAmount));
 
         emit RemoveLiquidity(msg.sender, ethAmount, tokenAmount);
-        emit Transfer(msg.sender, ZERO_ADDRESS, _amount);
+        emit Transfer(msg.sender, address(0), _amount);
 
         return (ethAmount, tokenAmount);
     }
@@ -238,7 +250,14 @@ contract Exchange {
         payable
         returns (uint256)
     {
-        return ethToTokenInput(msg.value, _minTokens, _deadline, msg.sender, msg.sender);
+        return
+            ethToTokenInput(
+                msg.value,
+                _minTokens,
+                _deadline,
+                msg.sender,
+                msg.sender
+            );
     }
 
     /// @notice Convert ETH to Tokens and transfers Tokens to recipient.
@@ -253,8 +272,15 @@ contract Exchange {
         address _recipient
     ) external payable returns (uint256) {
         require(_recipient != address(this));
-        require(_recipient != ZERO_ADDRESS);
-        return ethToTokenInput(msg.value, _minTokens, _deadline, msg.sender, _recipient);
+        require(_recipient != address(0));
+        return
+            ethToTokenInput(
+                msg.value,
+                _minTokens,
+                _deadline,
+                msg.sender,
+                _recipient
+            );
     }
 
     /// @notice Convert ETH to Tokens.
@@ -268,7 +294,13 @@ contract Exchange {
         returns (uint256)
     {
         return
-            ethToTokenOutput(_tokensBought, msg.value, _deadline, msg.sender, msg.sender);
+            ethToTokenOutput(
+                _tokensBought,
+                msg.value,
+                _deadline,
+                msg.sender,
+                msg.sender
+            );
     }
 
     /// @notice Convert ETH to Tokens and transfers Tokens to recipient.
@@ -283,9 +315,15 @@ contract Exchange {
         address _recipient
     ) external payable returns (uint256) {
         require(_recipient != address(this));
-        require(_recipient != ZERO_ADDRESS);
+        require(_recipient != address(0));
         return
-            ethToTokenOutput(_tokensBought, msg.value, _deadline, msg.sender, _recipient);
+            ethToTokenOutput(
+                _tokensBought,
+                msg.value,
+                _deadline,
+                msg.sender,
+                _recipient
+            );
     }
 
     /// @notice Convert Tokens to ETH.
@@ -299,7 +337,14 @@ contract Exchange {
         uint256 _minEth,
         uint256 _deadline
     ) external returns (uint256) {
-        return tokenToEthInput(_tokensSold, _minEth, _deadline, msg.sender, msg.sender);
+        return
+            tokenToEthInput(
+                _tokensSold,
+                _minEth,
+                _deadline,
+                msg.sender,
+                msg.sender
+            );
     }
 
     /// @notice Convert Tokens to ETH and transfers ETH to recipient.
@@ -316,8 +361,15 @@ contract Exchange {
         address _recipient
     ) external returns (uint256) {
         require(_recipient != address(this));
-        require(_recipient != ZERO_ADDRESS);
-        return tokenToEthInput(_tokensSold, _minEth, _deadline, msg.sender, _recipient);
+        require(_recipient != address(0));
+        return
+            tokenToEthInput(
+                _tokensSold,
+                _minEth,
+                _deadline,
+                msg.sender,
+                _recipient
+            );
     }
 
     /// @notice Convert Tokens to ETH.
@@ -332,7 +384,13 @@ contract Exchange {
         uint256 _deadline
     ) external returns (uint256) {
         return
-            tokenToEthOutput(_ethBought, _maxTokens, _deadline, msg.sender, msg.sender);
+            tokenToEthOutput(
+                _ethBought,
+                _maxTokens,
+                _deadline,
+                msg.sender,
+                msg.sender
+            );
     }
 
     /// @notice Convert Tokens to ETH and transfers ETH to recipient.
@@ -349,9 +407,15 @@ contract Exchange {
         address _recipient
     ) external returns (uint256) {
         require(_recipient != address(this));
-        require(_recipient != ZERO_ADDRESS);
+        require(_recipient != address(0));
         return
-            tokenToEthOutput(_ethBought, _maxTokens, _deadline, msg.sender, _recipient);
+            tokenToEthOutput(
+                _ethBought,
+                _maxTokens,
+                _deadline,
+                msg.sender,
+                _recipient
+            );
     }
 
     /// @notice Convert Tokens (token) to Tokens (_token).
@@ -596,11 +660,11 @@ contract Exchange {
         require(_inputReserve > 0);
         require(_outputReserve > 0);
 
-        uint256 inputAmountWithFee = _inputAmount.mul(997);
-        uint256 numerator = inputAmountWithFee.mul(_outputReserve);
-        uint256 denominator = (_inputReserve.mul(1000)).add(inputAmountWithFee);
+        uint256 inputAmountWithFee = _inputAmount * 997;
+        uint256 numerator = inputAmountWithFee * _outputReserve;
+        uint256 denominator = _inputReserve * 1000 + inputAmountWithFee;
 
-        return numerator.div(denominator);
+        return numerator / denominator;
     }
 
     /// @dev Pricing function for converting between ETH and Tokens.
@@ -616,10 +680,10 @@ contract Exchange {
         require(_inputReserve > 0);
         require(_outputReserve > 0);
 
-        uint256 numerator = (_inputReserve.mul(_outputAmount)).mul(1000);
-        uint256 denominator = (_outputReserve.sub(_outputAmount)).mul(997);
+        uint256 numerator = _inputReserve * _outputAmount * 1000;
+        uint256 denominator = (_outputReserve - _outputAmount) * 997;
 
-        return (numerator.div(denominator)).add(1);
+        return numerator / denominator + 1;
     }
 
     function ethToTokenInput(
@@ -634,13 +698,17 @@ contract Exchange {
         require(_minTokens > 0);
 
         uint256 tokenReserve = IExchange(token).balanceOf(address(this));
-        uint256 _inputReserve = address(this).balance.sub(_ethSold);
-        uint256 tokensBought = getInputPrice(_ethSold, _inputReserve, tokenReserve);
+        uint256 _inputReserve = address(this).balance - _ethSold;
+        uint256 tokensBought = getInputPrice(
+            _ethSold,
+            _inputReserve,
+            tokenReserve
+        );
 
         require(tokensBought > _minTokens);
         require(
             IExchange(token).transfer(_recipient, tokensBought),
-            'ERROR: FAILED TOKEN TRANSFER'
+            "ERROR: FAILED TOKEN TRANSFER"
         );
 
         emit TokenPurchase(_buyer, _ethSold, tokensBought);
@@ -660,18 +728,22 @@ contract Exchange {
         require(_maxEth > 0);
 
         uint256 tokenReserve = IExchange(token).balanceOf(address(this));
-        uint256 _inputReserve = address(this).balance.sub(_maxEth);
-        uint256 ethSold = getOutputPrice(_tokensBought, _inputReserve, tokenReserve);
-        uint256 ethRefund = _maxEth.sub(ethSold);
+        uint256 _inputReserve = address(this).balance - _maxEth;
+        uint256 ethSold = getOutputPrice(
+            _tokensBought,
+            _inputReserve,
+            tokenReserve
+        );
+        uint256 ethRefund = _maxEth - ethSold;
 
         if (ethRefund > 0) {
-            (bool success, ) = payable(_buyer).call{ value: ethRefund }('');
-            require(success, 'ERROR: FAILED SENDING ETHER REFUND');
+            (bool success, ) = payable(_buyer).call{value: ethRefund}("");
+            require(success, "ERROR: FAILED SENDING ETHER REFUND");
         }
 
         require(
             IExchange(token).transfer(_recipient, _tokensBought),
-            'ERROR: FAILED TOKEN TRANSFER'
+            "ERROR: FAILED TOKEN TRANSFER"
         );
 
         emit TokenPurchase(_buyer, ethSold, _tokensBought);
@@ -698,11 +770,11 @@ contract Exchange {
         );
         require(ethBought >= _minEth);
 
-        (bool success, ) = payable(_recipient).call{ value: ethBought }('');
-        require(success, 'ERROR: FAILED SENDING ETHER');
+        (bool success, ) = payable(_recipient).call{value: ethBought}("");
+        require(success, "ERROR: FAILED SENDING ETHER");
         require(
             IExchange(token).transferFrom(_buyer, address(this), _tokensSold),
-            'ERROR: FAILED TOKEN TRANSFER'
+            "ERROR: FAILED TOKEN TRANSFER"
         );
 
         emit EthPurchase(_buyer, _tokensSold, ethBought);
@@ -727,11 +799,11 @@ contract Exchange {
         );
         require(_maxTokens >= tokensSold);
 
-        (bool success, ) = payable(_recipient).call{ value: _ethBought }('');
-        require(success, 'ERROR: FAILED SENDING ETHER');
+        (bool success, ) = payable(_recipient).call{value: _ethBought}("");
+        require(success, "ERROR: FAILED SENDING ETHER");
         require(
             IExchange(token).transferFrom(_buyer, address(this), tokensSold),
-            'ERROR: FAILED TOKEN TRANSFER'
+            "ERROR: FAILED TOKEN TRANSFER"
         );
 
         emit EthPurchase(_buyer, tokensSold, _ethBought);
@@ -753,7 +825,7 @@ contract Exchange {
         require(_minTokensBought > 0);
         require(_minEthBought > 0);
         require(_exchange != address(this));
-        require(_exchange != ZERO_ADDRESS);
+        require(_exchange != address(0));
 
         uint256 tokenReserve = IExchange(token).balanceOf(address(this));
         uint256 ethBought = getInputPrice(
@@ -765,7 +837,7 @@ contract Exchange {
         require(ethBought >= _minEthBought);
         require(
             IExchange(token).transferFrom(_buyer, address(this), _tokensSold),
-            'ERROR: FAILED TOKEN TRANSFER'
+            "ERROR: FAILED TOKEN TRANSFER"
         );
 
         uint256 tokensBought = IExchange(_exchange).ethToTokenTransferInput{
@@ -790,9 +862,11 @@ contract Exchange {
         require(_tokensBought > 0);
         require(_maxEthSold > 0);
         require(_exchange != address(this));
-        require(_exchange != ZERO_ADDRESS);
+        require(_exchange != address(0));
 
-        uint256 ethBought = IExchange(_exchange).getEthToTokenOutputPrice(_tokensBought);
+        uint256 ethBought = IExchange(_exchange).getEthToTokenOutputPrice(
+            _tokensBought
+        );
         uint256 tokenReserve = IExchange(token).balanceOf(address(this));
         uint256 tokensSold = getOutputPrice(
             ethBought,
@@ -804,10 +878,10 @@ contract Exchange {
         require(_maxEthSold >= ethBought);
         require(
             IExchange(token).transferFrom(_buyer, address(this), tokensSold),
-            'ERROR: FAILED TOKEN TRANSFER'
+            "ERROR: FAILED TOKEN TRANSFER"
         );
 
-        uint256 ethSold = IExchange(_exchange).ethToTokenTransferOutput{
+        IExchange(_exchange).ethToTokenTransferOutput{
             value: ethBought
         }(_tokensBought, _deadline, _recipient);
 
@@ -847,7 +921,11 @@ contract Exchange {
         return true;
     }
 
-    function allowance(address _owner, address _spender) external view returns (uint256) {
+    function allowance(address _owner, address _spender)
+        external
+        view
+        returns (uint256)
+    {
         return allowances[_owner][_spender];
     }
 
